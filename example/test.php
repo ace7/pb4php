@@ -1,20 +1,14 @@
 <?php
-// EXECUTE test_new.php first 
-
-
+// EXECUTE test_new.php first
 // first include pb_message
-require_once('../message/pb_message.php');
-
+require_once ('../message/pb_message.php');
 // now read it with the old file
 // include the generated file
-require_once('./pb_proto_test.php');
-
+require_once ('./pb_proto_test.php');
 $string = file_get_contents('./test.pb');
-
 // Just read it
 $book = new AddressBook();
 $book->parseFromString($string);
-
 var_dump($book->persons_size());
 $person = $book->person(0);
 var_dump($person->name());
