@@ -1,0 +1,12 @@
+
+message Configuration {
+     optional string query = 1;
+}
+   
+
+message UserData {
+	optional string id = 9;
+	optional string clientname = 1;
+	repeated Configuration configuration = 4;
+}
+
