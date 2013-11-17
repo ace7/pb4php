@@ -214,6 +214,7 @@ class PBParser {
             $fieldName = $field['value']['name'];
             $string.= '    self::$fields["' . $classname . '"]["' . $field['value']['value'] . '"] = "' . $classtype . '"' . ";\n";
             if (isset($field['value']['repeated'])) {
+                if (isset($field['value']['packed']) && $field['value']['packed'] == 'true') $string.= '    self::$fieldsPacked["' . $classname . '"]["' . $field['value']['value'] . '"] = true' . ";\n";
                 $string.= '    $this->values["' . $field['value']['value'] . '"] = array()' . ";\n";
             } else {
                 //$string .= '    $this->fields["' . $field['value']['value'] . '"] = new ' . $classtype . "();\n";
@@ -308,6 +309,12 @@ class PBParser {
         $match = preg_match('/\[\s?default\s?=\s?([^\[]*)\]\s?;/', $content, $matches, PREG_OFFSET_CAPTURE);
         if ($match) {
             $myarray['default'] = $matches[1][0];
+            $content = trim(substr($content, 0, $matches[0][1])) . ';';
+        }
+        // parse the packed value
+        $match = preg_match('/\[\s?packed\s?=\s?([^\[]*)\]\s?;/', $content, $matches, PREG_OFFSET_CAPTURE);
+        if ($match) {
+            $myarray['packed'] = $matches[1][0];
             $content = trim(substr($content, 0, $matches[0][1])) . ';';
         }
         // parse the value

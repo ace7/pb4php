@@ -1,4 +1,4 @@
-<?
+<?php
 /**
  * Including of all files needed to parse messages
  * @author Nikolai Kordulla
@@ -30,6 +30,7 @@ abstract class PBMessage {
     // here are the field types
     protected static $fields = array();
     protected static $fieldNames = array();
+    protected static $fieldsPacked = array();
     // the values for the fields
     protected $values = array();
     // type of the class
@@ -145,11 +146,19 @@ abstract class PBMessage {
         $stringinner = '';
         foreach (self::$fields[$this->getClassNameWithoutNamespace($this) ] as $index => $field) {
             if (is_array($this->values[$index]) && count($this->values[$index]) > 0) {
-                // make serialization for every array
-                foreach ($this->values[$index] as $array) {
+                if (isset(self::$fieldsPacked[$this->getClassNameWithoutNamespace($this) ][$index])) {
                     $newstring = '';
-                    $newstring.= $array->SerializeToString($index);
-                    $stringinner.= $newstring;
+                    foreach ($this->values[$index] as $array) {
+                        $newstring.= $array->SerializeToString(); # don't set tag (wiretype and index)
+                    }
+                    $stringinner.= $this->base128->set_value($index << 3 | PBMessage::WIRED_LENGTH_DELIMITED) . $this->base128->set_value(strlen($newstring)) . $newstring;
+                } else {
+                    // make serialization for every array
+                    foreach ($this->values[$index] as $array) {
+                        $newstring = '';
+                        $newstring.= $array->SerializeToString($index);
+                        $stringinner.= $newstring;
+                    }
                 }
             } else if ($this->values[$index] != null) {
                 // wired and type
@@ -224,12 +233,27 @@ abstract class PBMessage {
             }
             // now array or not
             if (is_array($this->values[$messtypes['field']])) {
-                $this->values[$messtypes['field']][] = new self::$fields[$thisClassName][$messtypes['field']]($this->reader);
-                $index = count($this->values[$messtypes['field']]) - 1;
-                if ($messtypes['wired'] != $this->values[$messtypes['field']][$index]->wired_type) {
-                    throw new Exception('Expected type:' . $messtypes['wired'] . ' but had ' . self::$fields[$thisClassName][$messtypes['field']]->wired_type);
+                if (isset(self::$fieldsPacked[$thisClassName][$messtypes['field']])) { # packed field
+                    $isFirst = True;
+                    $leftLength = 0;
+                    while (true) {
+                        $this->values[$messtypes['field']][] = new self::$fields[$thisClassName][$messtypes['field']]($this->reader);
+                        $index = count($this->values[$messtypes['field']]) - 1;
+                        if ($isFirst) {
+                            $isFirst = False;
+                            $leftLength = $this->values[$messtypes['field']][$index]->getPackedLength();
+                        }
+                        $leftLength = $this->values[$messtypes['field']][$index]->ParsePackedFromArray($leftLength);
+                        if ($leftLength <= 0) break;
+                    }
+                } else {
+                    $this->values[$messtypes['field']][] = new self::$fields[$thisClassName][$messtypes['field']]($this->reader);
+                    $index = count($this->values[$messtypes['field']]) - 1;
+                    if ($messtypes['wired'] != $this->values[$messtypes['field']][$index]->wired_type) {
+                        throw new Exception('Expected type:' . $messtypes['wired'] . ' but had ' . self::$fields[$thisClassName][$messtypes['field']]->wired_type);
+                    }
+                    $this->values[$messtypes['field']][$index]->ParseFromArray();
                 }
-                $this->values[$messtypes['field']][$index]->ParseFromArray();
             } else {
                 $this->values[$messtypes['field']] = new self::$fields[$thisClassName][$messtypes['field']]($this->reader);
                 if ($messtypes['wired'] != $this->values[$messtypes['field']]->wired_type) {

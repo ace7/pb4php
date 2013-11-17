@@ -5,6 +5,20 @@
  */
 class PBInt extends PBScalar {
     var $wired_type = PBMessage::WIRED_VARINT;
+    public function getPackedLength() {
+        $length = $this->reader->next();
+        return $length;
+    }
+    public function ParsePackedFromArray($leftLength) {
+        $prev_pointer = $this->reader->get_pointer();
+        $this->value = $this->reader->next();
+        $curr_pointer = $this->reader->get_pointer();
+        $leftLength-= ($curr_pointer - $prev_pointer);
+        if ($leftLength < 0) throw new Exception('Error in parse packed field: length is not enough');
+        #if ($leftLength == 0)
+        #    $this->clean();
+        return $leftLength;
+    }
     /**
      * Parses the message for this type
      *
